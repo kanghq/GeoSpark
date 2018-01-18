@@ -7,10 +7,12 @@
 package org.datasyslab.geospark.spatialPartitioning;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
+import com.hqkang.SparkApp.geom.MBRRDDKey;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 
@@ -37,22 +39,26 @@ public class PartitionJudgement implements Serializable{
 		HashSet<Tuple2<Integer, Object>> result = new HashSet<Tuple2<Integer, Object>>();
 		int overflowContainerID=grids.size();
 		boolean containFlag=false;
-		for(int gridId=0;gridId<grids.size();gridId++)
-		{	
-			if(grids.get(gridId).covers(((Geometry) spatialObject).getEnvelopeInternal()))
-			{
-				result.add(new Tuple2<Integer, Object>(gridId, spatialObject));
-				containFlag=true;
+		int startTime = ((MBRRDDKey)((Geometry) spatialObject).getUserData()).getStartTime();
+		int endTime = ((MBRRDDKey)((Geometry) spatialObject).getUserData()).getEndTime();
+		for (int datePrefix = startTime; datePrefix <= endTime; datePrefix++) {
+			for (int gridId = 0; gridId < grids.size(); gridId++) {
+				if (grids.get(gridId).covers(((Geometry) spatialObject).getEnvelopeInternal())) {
+					int newGridId = (String.valueOf(gridId).length()*10)*datePrefix+gridId;
+					result.add(new Tuple2<Integer, Object>(newGridId, spatialObject));
+					containFlag = true;
+				} else if (grids.get(gridId).intersects(((Geometry) spatialObject).getEnvelopeInternal())
+						|| ((Geometry) spatialObject).getEnvelopeInternal().covers(grids.get(gridId))) {
+					int newGridId = (String.valueOf(gridId).length()*10)*datePrefix+gridId;
+
+					result.add(new Tuple2<Integer, Object>(newGridId, spatialObject));
+					// containFlag=true;
+				}
 			}
-			else if(grids.get(gridId).intersects(((Geometry) spatialObject).getEnvelopeInternal())||((Geometry) spatialObject).getEnvelopeInternal().covers(grids.get(gridId)))
-			{
-				result.add(new Tuple2<Integer, Object>(gridId, spatialObject));
-				//containFlag=true;
+			if (containFlag == false) {
+				int newOverflowContainerID = (String.valueOf(overflowContainerID).length()*10)*datePrefix+overflowContainerID;
+				result.add(new Tuple2<Integer, Object>(newOverflowContainerID, spatialObject));
 			}
-		}
-		if(containFlag==false)
-		{
-			result.add(new Tuple2<Integer, Object>(overflowContainerID,spatialObject));
 		}
 		return result.iterator();
 	}

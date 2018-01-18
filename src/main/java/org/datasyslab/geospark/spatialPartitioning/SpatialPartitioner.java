@@ -36,8 +36,8 @@ public class SpatialPartitioner extends Partitioner implements Serializable{
 	@Override
 	public int getPartition(Object key) {
 		// TODO Auto-generated method stub
-		//return (int)key%(numParts);
-		return (int)key;
+		return (int)key%(numParts);
+		//return (int)key;
 	}
 	
 	/* (non-Javadoc)
